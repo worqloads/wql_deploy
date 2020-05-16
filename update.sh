@@ -106,8 +106,15 @@ mv ${installer_folder}/scale*min.js ${scaler_folder}/                           
 diff -q ${scaler_folder}/update.sh ${installer_folder}/update.sh &>> /dev/null || \
     mv ${installer_folder}/update.sh ${scaler_folder}/.update_new.sh                               &>> ${log_file}
 cp -r ${installer_folder}/node_modules/* ${scaler_folder}/node_modules/                            &>> ${log_file}
-pm2 restart all  --update-env                                                                      &>> ${log_file}
-pm2 list                                                                                           &>> ${log_file}
+
+pm2 delete all &>> ${log_file} || echo ''
+pm2 flush all &>> ${log_file}
+pm2 start ${scaler_folder}/.ecosystem.config.js --update-env &>> ${log_file} || echo ''
+pm2 list  &>> ${log_file}
+pm2 save &>> ${log_file}
+
+# pm2 restart all  --update-env                                                                      &>> ${log_file}
+# pm2 list                                                                                           &>> ${log_file}
 #pm2 save                                                                                           &>> ${log_file}
 # update version in conf file
 sed -i -E "s/\"version\":\s\"v[0-9]+\.[0-9]+\.[0-9]+\"/\"version\": \"${WQL_VERSION}\"/" ${scaler_folder}/conf.json &>> ${log_file}
