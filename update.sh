@@ -47,6 +47,7 @@ for i in "$@"; do
         ;;
     esac
 done
+echo " + Updating Agent: $WQL_VERSION"
 echo "WQL_VERSION  = ${WQL_VERSION}"
 echo "WQL_AGENT    = ${WQL_AGENT}"
 
