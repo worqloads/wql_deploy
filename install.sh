@@ -85,7 +85,7 @@ TOKEN=`curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metad
     -f ${installer_folder}/.aws_ip ]] || exit 1
 # create local configuration
 clear
-node register_min.js ${WQL_VERSION} 'production'
+node register_min.js ${WQL_VERSION}
 
 # registration successful
 if [[ $? -eq 0 && -f './conf.json' ]]; then
