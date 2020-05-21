@@ -27,26 +27,11 @@ if [ "$UNAME_M"  != "x86_64" ]; then
     exit 1
 fi
 
-KNOWN_DISTRIBUTION="(Debian|Ubuntu|RedHat|CentOS|openSUSE|Amazon|Arista|SUSE)"
-DISTRIBUTION=$(lsb_release -d 2>/dev/null | grep -Eo $KNOWN_DISTRIBUTION  || grep -Eo $KNOWN_DISTRIBUTION /etc/issue 2>/dev/null || grep -Eo $KNOWN_DISTRIBUTION /etc/Eos-release 2>/dev/null || grep -m1 -Eo $KNOWN_DISTRIBUTION /etc/os-release 2>/dev/null || uname -s)
 
-if [ $DISTRIBUTION = "Darwin" ]; then
-    OS="MacOS"
-elif [ -f /etc/debian_version -o "$DISTRIBUTION" == "Debian" ]; then
-    OS="Debian"
-elif [ -f /etc/debian_version -o "$DISTRIBUTION" == "Ubuntu" ]; then
+if [ $(lsb_release -d | grep -Eo Ubuntu) == "Ubuntu" ]; then
     OS="Ubuntu"
-elif [ -f /etc/redhat-release -o "$DISTRIBUTION" == "RedHat" -o "$DISTRIBUTION" == "CentOS" -o "$DISTRIBUTION" == "Amazon" ]; then
+elif [ -f /etc/redhat-release -a $(grep -Eo "Red Hat Enterprise Linux" /etc/redhat-release) == "Red Hat Enterprise Linux" ]; then
     OS="RedHat"
-# Some newer distros like Amazon may not have a redhat-release file
-elif [ -f /etc/system-release -o "$DISTRIBUTION" == "Amazon" ]; then
-    OS="RedHat"
-# Arista is based off of Fedora14/18 but do not have /etc/redhat-release
-elif [ -f /etc/Eos-release -o "$DISTRIBUTION" == "Arista" ]; then
-    OS="RedHat"
-# openSUSE and SUSE use /etc/SuSE-release
-elif [ -f /etc/SuSE-release -o "$DISTRIBUTION" == "SUSE" -o "$DISTRIBUTION" == "openSUSE" ]; then
-    OS="SUSE"
 fi
 
 # Install packages on supported OS
