@@ -25,19 +25,19 @@ set -e
 # Supported distrib (ubuntu, redhat) and archi (64bits)
 OS=""
 UNAME_M=$(uname -m)
-if [ "$UNAME_M" != "x86_64" ]; then
+if [[ "$UNAME_M" != "x86_64" ]]; then
     echo " Only x86_64 architecture is supported."
     exit 1
 fi
 
-if [ $(lsb_release -d | grep -Eo Ubuntu) == "Ubuntu" ]; then
+if [[ $(lsb_release -d 2>/dev/null | grep -Eo Ubuntu) == "Ubuntu" ]]; then
     OS="Ubuntu"
-elif [ -f /etc/redhat-release -a $(grep -Eo "Red Hat Enterprise Linux" /etc/redhat-release) == "Red Hat Enterprise Linux" ]; then
+elif [[ -f /etc/redhat-release -a $(grep -Eo "Red Hat Enterprise Linux" /etc/redhat-release) == "Red Hat Enterprise Linux" ]]; then
     OS="RedHat"
 fi
 
 # Install packages on supported OS
-if [ $OS != "RedHat" -a $OS != "Ubuntu" ]; then
+if [[ $OS != "RedHat" -a $OS != "Ubuntu" ]]; then
     echo " OS not supported by SmartScaler agent. Please use Ubuntu or RHEL."
     exit 1
 fi
@@ -46,7 +46,7 @@ fi
 echo " + Installing Agent App Version: $WQL_VERSION"
 
 # Root user detection
-if [ $(echo "$UID") = "0" ]; then
+if [[ $(echo "$UID") = "0" ]]; then
     sudo_cmd=''
 else
     sudo_cmd='sudo'
@@ -56,12 +56,12 @@ pckg_mngr=''
 nodesource=''
 echo '' > ${log_file}
 
-if [ $OS = "RedHat" ]; then
+if [[ $OS = "RedHat" ]]; then
 
     # Versions of yum on RedHat 5 and lower embed M2Crypto with SSL that doesn't support TLS1.2
     REDHAT_MAJOR_VERSION=$(grep -Eo "[0-9].[0-9]{1,2}" /etc/redhat-release | head -c 1)
 
-    if [ $REDHAT_MAJOR_VERSION == "" -o $REDHAT_MAJOR_VERSION -lt 7 ]; then
+    if [[ $REDHAT_MAJOR_VERSION == "" -o $REDHAT_MAJOR_VERSION -lt 7 ]]; then
         echo " Only RHEL versions >= 7 are supporrted."
         exit 1
     fi
@@ -69,20 +69,20 @@ if [ $OS = "RedHat" ]; then
     pckg_mngr='yum'
     nodesource='https://rpm.nodesource.com/setup_12.x'
 
-elif [ $OS = "Ubuntu" ]; then
+elif [[ $OS = "Ubuntu" ]]; then
     
-    if [ -f /etc/lsb-release ]; then
+    if [[ -f /etc/lsb-release ]]; then
         UBUNTU_MAJOR_VERSION=$(lsb_release -sr | grep -Eo "^[0-9]{1,2}")
     fi
 
-    if [ $UBUNTU_MAJOR_VERSION == "" -o $UBUNTU_MAJOR_VERSION -lt 18 ]; then
+    if [[ $UBUNTU_MAJOR_VERSION == "" -o $UBUNTU_MAJOR_VERSION -lt 18 ]]; then
         echo " Only Ubuntu versions >= 18 are supporrted."
         exit 1
     fi
     pckg_mngr='apt-get'
     nodesource='https://deb.nodesource.com/setup_12.x'
 
-# elif [ $OS = "SUSE" ]; then
+# elif [[ $OS = "SUSE" ]]; then
 #     pckg_mngr='zypper'
     
 fi

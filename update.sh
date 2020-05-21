@@ -22,20 +22,20 @@ set -e
 # check prereqs & update
 # Supported distrib (ubuntu, redhat) and archi (64bits)
 UNAME_M=$(uname -m)
-if [ "$UNAME_M"  != "x86_64" ]; then
+if [[ "$UNAME_M"  != "x86_64" ]]; then
     echo " Only x86_64 architecture is supported."
     exit 1
 fi
 
 
-if [ $(lsb_release -d | grep -Eo Ubuntu) == "Ubuntu" ]; then
+if [[ $(lsb_release -d | grep -Eo Ubuntu) == "Ubuntu" ]]; then
     OS="Ubuntu"
-elif [ -f /etc/redhat-release -a $(grep -Eo "Red Hat Enterprise Linux" /etc/redhat-release) == "Red Hat Enterprise Linux" ]; then
+elif [[ -f /etc/redhat-release -a $(grep -Eo "Red Hat Enterprise Linux" /etc/redhat-release) == "Red Hat Enterprise Linux" ]]; then
     OS="RedHat"
 fi
 
 # Install packages on supported OS
-if [ $OS != "RedHat" -a $OS != "Ubuntu" ]; then
+if [[ $OS != "RedHat" -a $OS != "Ubuntu" ]]; then
     echo " OS not supported by SmartScaler agent. Please use Ubuntu or RHEL."
     exit 1
 fi
@@ -77,7 +77,7 @@ echo "WQL_AGENT    = ${WQL_AGENT}"
 [[ ${WQL_VERSION} =~ v[0-9]+\.[0-9]+\.[0-9]+ && ${WQL_AGENT} =~ [0-9A-Fa-f]{24} ]] || (echo "Error: incorrect parameters"  && exit 1)
 
 # Root user detection
-if [ $(echo "$UID") = "0" ]; then
+if [[ $(echo "$UID") = "0" ]]; then
     sudo_cmd=''
 else
     sudo_cmd='sudo'
@@ -86,9 +86,9 @@ fi
 pckg_mngr=''
 echo '' > ${log_file}
 
-if [ $OS = "RedHat" ]; then
+if [[ $OS = "RedHat" ]]; then
     pckg_mngr='yum'
-elif [ $OS = "Ubuntu" ]; then
+elif [[ $OS = "Ubuntu" ]]; then
     pckg_mngr='apt-get'
 fi
 
