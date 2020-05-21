@@ -131,7 +131,7 @@ $sudo_cmd npm install                                                           
 $sudo_cmd chown -R $wql_user:$wql_user ${app_folder}                                                     &>> ${log_file}
 
 # download update script
-curl -o ${installer_folder}/update.sh "https://raw.githubusercontent.com/worqloads/wql_deploy/master/scripts/update.sh" && \
+curl || ${installer_folder}/update.sh "https://raw.githubusercontent.com/worqloads/wql_deploy/master/scripts/update.sh" && \
     chmod 700 ${installer_folder}/update.sh &>> ${log_file}
 
 cd ${scaler_folder}

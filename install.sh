@@ -61,7 +61,7 @@ if [[ $OS = "RedHat" ]]; then
     # Versions of yum on RedHat 5 and lower embed M2Crypto with SSL that doesn't support TLS1.2
     REDHAT_MAJOR_VERSION=$(grep -Eo "[0-9].[0-9]{1,2}" /etc/redhat-release | head -c 1)
 
-    if [[ $REDHAT_MAJOR_VERSION == "" -o $REDHAT_MAJOR_VERSION -lt 7 ]]; then
+    if [[ $REDHAT_MAJOR_VERSION == "" || $REDHAT_MAJOR_VERSION -lt 7 ]]; then
         echo " Only RHEL versions >= 7 are supporrted."
         exit 1
     fi
@@ -75,7 +75,7 @@ elif [[ $OS = "Ubuntu" ]]; then
         UBUNTU_MAJOR_VERSION=$(lsb_release -sr | grep -Eo "^[0-9]{1,2}")
     fi
 
-    if [[ $UBUNTU_MAJOR_VERSION == "" -o $UBUNTU_MAJOR_VERSION -lt 18 ]]; then
+    if [[ $UBUNTU_MAJOR_VERSION == "" || $UBUNTU_MAJOR_VERSION -lt 18 ]]; then
         echo " Only Ubuntu versions >= 18 are supporrted."
         exit 1
     fi
@@ -154,7 +154,7 @@ if [[ $? -eq 0 && -f './conf.json' ]]; then
     cd ${scaler_folder}
     mv ${installer_folder}/scale*min.js ${installer_folder}/node_modules ${installer_folder}/.aws_* ${installer_folder}/.ecosystem.config.js ${installer_folder}/conf.json ${scaler_folder}/    &>> ${log_file}
     # download update script
-    curl -s -o ${scaler_folder}/update.sh "https://raw.githubusercontent.com/worqloads/wql_deploy/master/scripts/update.sh" && \
+    curl -s || ${scaler_folder}/update.sh "https://raw.githubusercontent.com/worqloads/wql_deploy/master/scripts/update.sh" && \
         chmod 700 ${scaler_folder}/update.sh &>> ${log_file}
     
     pm2 delete all &>> ${log_file} || echo ''
