@@ -27,15 +27,14 @@ if [[ "$UNAME_M"  != "x86_64" ]]; then
     exit 1
 fi
 
-
-if [[ $(lsb_release -d | grep -Eo Ubuntu) == "Ubuntu" ]]; then
+if [[ $(lsb_release -d 2>/dev/null | grep -Eo Ubuntu) == "Ubuntu" ]]; then
     OS="Ubuntu"
-elif [[ -f /etc/redhat-release -a $(grep -Eo "Red Hat Enterprise Linux" /etc/redhat-release) == "Red Hat Enterprise Linux" ]]; then
+elif [[ -f /etc/redhat-release && $(grep -Eo "Red Hat Enterprise Linux" /etc/redhat-release) == "Red Hat Enterprise Linux" ]]; then
     OS="RedHat"
 fi
 
 # Install packages on supported OS
-if [[ $OS != "RedHat" -a $OS != "Ubuntu" ]]; then
+if [[ $OS != "RedHat" && $OS != "Ubuntu" ]]; then
     echo " OS not supported by SmartScaler agent. Please use Ubuntu or RHEL."
     exit 1
 fi
