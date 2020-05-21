@@ -22,33 +22,103 @@ wql_user=`whoami`
 set -e
 
 # check prereqs & update
-# todo supported distrib (redhat), and archi (64bits)
+# Supported distrib (ubuntu, redhat) and archi (64bits)
+UNAME_M=$(uname -m)
+if [ "$UNAME_M"  != "x86_64" ]; then
+    echo " Only x86_64 architecture is supported."
+    exit 1
+fi
+
+KNOWN_DISTRIBUTION="(Debian|Ubuntu|RedHat|CentOS|openSUSE|Amazon|Arista|SUSE)"
+DISTRIBUTION=$(lsb_release -d 2>/dev/null | grep -Eo $KNOWN_DISTRIBUTION  || grep -Eo $KNOWN_DISTRIBUTION /etc/issue 2>/dev/null || grep -Eo $KNOWN_DISTRIBUTION /etc/Eos-release 2>/dev/null || grep -m1 -Eo $KNOWN_DISTRIBUTION /etc/os-release 2>/dev/null || uname -s)
+
+if [ $DISTRIBUTION = "Darwin" ]; then
+    OS="MacOS"
+elif [ -f /etc/debian_version -o "$DISTRIBUTION" == "Debian" ]; then
+    OS="Debian"
+elif [ -f /etc/debian_version -o "$DISTRIBUTION" == "Ubuntu" ]; then
+    OS="Ubuntu"
+elif [ -f /etc/redhat-release -o "$DISTRIBUTION" == "RedHat" -o "$DISTRIBUTION" == "CentOS" -o "$DISTRIBUTION" == "Amazon" ]; then
+    OS="RedHat"
+# Some newer distros like Amazon may not have a redhat-release file
+elif [ -f /etc/system-release -o "$DISTRIBUTION" == "Amazon" ]; then
+    OS="RedHat"
+# Arista is based off of Fedora14/18 but do not have /etc/redhat-release
+elif [ -f /etc/Eos-release -o "$DISTRIBUTION" == "Arista" ]; then
+    OS="RedHat"
+# openSUSE and SUSE use /etc/SuSE-release
+elif [ -f /etc/SuSE-release -o "$DISTRIBUTION" == "SUSE" -o "$DISTRIBUTION" == "openSUSE" ]; then
+    OS="SUSE"
+fi
+
+# Install packages on supported OS
+if [ $OS != "RedHat" -a $OS != "Ubuntu" ]; then
+    echo " OS not supported by SmartScaler agent. Please use Ubuntu or RHEL."
+    exit 1
+fi
 
 # ####################################################
 echo " + Installing Agent App Version: $WQL_VERSION"
 
-# update profile
-[[ `cat ~/.bashrc | grep -c '^export SECUDIR='` -ne 0  ]] || echo export SECUDIR=${secudir} >> ~/.bashrc ; export SECUDIR=${secudir}
-[[ `cat ~/.bashrc | grep -c '^export NODE_ENV='` -ne 0  ]] || echo export NODE_ENV='production' >> ~/.bashrc ; export NODE_ENV='production'
-[[ -f ~/.profile ]] && [[ `cat ~/.profile | grep -c '^export SECUDIR='` -ne 0  ]] || echo export SECUDIR=${secudir} >> ~/.profile
-[[ -f ~/.profile ]] && [[ `cat ~/.profile | grep -c "^export NODE_ENV="` -ne 0  ]] || echo export NODE_ENV='production' >> ~/.profile 
+# Root user detection
+if [ $(echo "$UID") = "0" ]; then
+    sudo_cmd=''
+else
+    sudo_cmd='sudo'
+fi
+
+pckg_mngr=''
+nodesource=''
+echo '' > ${log_file}
+
+if [ $OS = "RedHat" ]; then
+
+    # Versions of yum on RedHat 5 and lower embed M2Crypto with SSL that doesn't support TLS1.2
+    if [ -f /etc/redhat-release ]; then
+        REDHAT_MAJOR_VERSION=$(grep -Eo "[0-9].[0-9]{1,2}" /etc/redhat-release | head -c 1)
+    fi
+
+    if [ $REDHAT_MAJOR_VERSION == "" -o $REDHAT_MAJOR_VERSION -lt 7 ]; then
+        echo " Only RHEL versions >= 7 are supporrted."
+        exit 1
+    fi
+
+    pckg_mngr='yum'
+    nodesource='https://rpm.nodesource.com/setup_12.x'
+
+elif [ $OS = "Ubuntu" ]; then
+    
+    if [ -f /etc/lsb-release ]; then
+        UBUNTU_MAJOR_VERSION=$(lsb_release -sr | grep -Eo "^[0-9]{1,2}")
+    fi
+
+    if [ $UBUNTU_MAJOR_VERSION == "" -o $UBUNTU_MAJOR_VERSION -lt 18 ]; then
+        echo " Only Ubuntu versions >= 18 are supporrted."
+        exit 1
+    fi
+    pckg_mngr='apt-get'
+    nodesource='https://deb.nodesource.com/setup_12.x'
+
+# elif [ $OS = "SUSE" ]; then
+#     pckg_mngr='zypper'
+    
+fi
 
 # install NodeJS, NPM, PM2, GIT
-yes | sudo yum update                                                                               &> ${log_file}
-yes | sudo yum install curl git                                                                     &>> ${log_file}
-[[ -d ${app_folder} ]] || sudo mkdir -p ${app_folder}                                               &>> ${log_file}
-sudo chown -R $wql_user:$wql_user ${app_folder}                                                     &>> ${log_file}
-[[ -d ~/.ssh ]] || mkdir ~/.ssh && chmod 700  ~/.ssh                                                &>> ${log_file}
-#yes | sudo yum remove -y nodejs npm                                                                 &>> ${log_file}
-curl -sL https://rpm.nodesource.com/setup_12.x | sudo -E bash -                                     &>> ${log_file}
-yes | sudo yum install -y nodejs                                                                    &>> ${log_file}
-yes | sudo npm install npm@latest -g                                                                &>> ${log_file}
-yes | sudo npm install pm2 -g                                                                       &>> ${log_file}
-[[ -d ~/.npm ]] && sudo chown -R $wql_user:$wql_user ~/.npm                                         &>> ${log_file}
-[[ -d ~/.config ]] && sudo chown -R $wql_user:$wql_user ~/.config                                   &>> ${log_file}
+yes | $sudo_cmd $pckg_mngr update                                                                               &>> ${log_file}
+yes | $sudo_cmd $pckg_mngr install curl git                                                                     &>> ${log_file}
+curl -sL $nodesource | $sudo_cmd -E bash -                                                                      &>> ${log_file}
+yes | $sudo_cmd $pckg_mngr install -y nodejs                                                                    &>> ${log_file}
+
+yes | $sudo_cmd npm install npm@latest -g                                                                &>> ${log_file}
+yes | $sudo_cmd npm install pm2 -g                                                                       &>> ${log_file}
+
+[[ -d ~/.ssh ]] || mkdir ~/.ssh && chmod 700  ~/.ssh                                                     &>> ${log_file}
+[[ -d ~/.npm ]] && $sudo_cmd chown -R $wql_user:$wql_user ~/.npm                                         &>> ${log_file}
+[[ -d ~/.config ]] && $sudo_cmd chown -R $wql_user:$wql_user ~/.config                                   &>> ${log_file}
 
 # pm2 as startup
-sudo env PATH=$PATH:/usr/bin /usr/lib/node_modules/pm2/bin/pm2 startup systemd -u ${wql_user} --hp /home/${wql_user} &>> ${log_file}
+$sudo_cmd env PATH=$PATH:/usr/bin /usr/lib/node_modules/pm2/bin/pm2 startup systemd -u ${wql_user} --hp /home/${wql_user} &>> ${log_file}
 
 # add cron housekeeping script of pm2 logs
 pm2 install pm2-logrotate                              &>> ${log_file}
@@ -56,16 +126,25 @@ pm2 set pm2-logrotate:max_size 100M                    &>> ${log_file}
 pm2 set pm2-logrotate:retain 24                        &>> ${log_file}
 pm2 set pm2-logrotate:rotateInterval '0 * * * *'       &>> ${log_file}
 
+[[ -d ${app_folder} ]] || $sudo_cmd mkdir -p ${app_folder}                                               &>> ${log_file}
+$sudo_cmd chown -R $wql_user:$wql_user ${app_folder}                                                     &>> ${log_file}
+
+# update profile
+[[ `cat ~/.bashrc | grep -c '^export SECUDIR='` -ne 0  ]] || echo export SECUDIR=${secudir} >> ~/.bashrc ; export SECUDIR=${secudir}
+[[ `cat ~/.bashrc | grep -c '^export NODE_ENV='` -ne 0  ]] || echo export NODE_ENV='production' >> ~/.bashrc ; export NODE_ENV='production'
+[[ -f ~/.profile ]] && [[ `cat ~/.profile | grep -c '^export SECUDIR='` -ne 0  ]] || echo export SECUDIR=${secudir} >> ~/.profile
+[[ -f ~/.profile ]] && [[ `cat ~/.profile | grep -c "^export NODE_ENV="` -ne 0  ]] || echo export NODE_ENV='production' >> ~/.profile 
+
 # if $scaler_folder already exists, do a backup
-[[ -d $scaler_folder ]] && sudo mv $scaler_folder "${scaler_folder}_$(date "+%Y.%m.%d-%H.%M.%S")"   &>> ${log_file}
-sudo rm -rf ${installer_folder}
+[[ -d $scaler_folder ]] && $sudo_cmd mv $scaler_folder "${scaler_folder}_$(date "+%Y.%m.%d-%H.%M.%S")"   &>> ${log_file}
+$sudo_cmd rm -rf ${installer_folder}
 git clone https://github.com/worqloads/wql_installer.git $installer_folder                          &>> ${log_file}
 
 cd ${installer_folder}
 [[ ! -z "$WQL_VERSION" ]] && git checkout ${WQL_VERSION}                                            &>> ${log_file}
-sudo npm install                                                                                    &>> ${log_file}
+$sudo_cmd npm install                                                                                    &>> ${log_file}
 [[ -d ${secudir} ]] || mkdir -p ${secudir}                                                          &>> ${log_file}
-sudo chown -R $wql_user:$wql_user ${app_folder}                                                     &>> ${log_file}
+$sudo_cmd chown -R $wql_user:$wql_user ${app_folder}                                                     &>> ${log_file}
 
 # get aws instance region
 TOKEN=`curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600"` &>> ${log_file}
@@ -82,7 +161,7 @@ TOKEN=`curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metad
     -f ${installer_folder}/.aws_vpc && \
     -f ${installer_folder}/.aws_instancetype && \
     -f ${installer_folder}/.aws_hostname && \
-    -f ${installer_folder}/.aws_ip ]] || exit 1
+    -f ${installer_folder}/.aws_ip ]] || exit 2
 # create local configuration
 clear
 node register_min.js ${WQL_VERSION}
@@ -100,14 +179,6 @@ if [[ $? -eq 0 && -f './conf.json' ]]; then
     pm2 start ${scaler_folder}/.ecosystem.config.js &>> ${log_file} || echo ''
     pm2 save &>> ${log_file}
 
-    # pm2 stop scaler_sync_min        &>> ${log_file} || echo ''
-    # pm2 stop scaler_collect_min     &>> ${log_file} || echo ''
-    # pm2 stop scaler_scale_min       &>> ${log_file} || echo ''
-    # pm2 stop scaler_update_min      &>> ${log_file} || echo ''
-    # pm2 stop scaler_mon_min         &>> ${log_file} || echo ''
-    # pm2 flush all &>> ${log_file}
-    # pm2 start scaler_sync_min.js scaler_collect_min.js scaler_scale_min.js scaler_update_min.js scaler_mon_min.js   &>> ${log_file}
-    # pm2 save                                                                                                        &>> ${log_file}
 fi
 
 rm -rf ${installer_folder}/

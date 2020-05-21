@@ -17,6 +17,44 @@ set -e
 
 # 0. Check & validate parameters
 # ####################################################
+
+
+# check prereqs & update
+# Supported distrib (ubuntu, redhat) and archi (64bits)
+UNAME_M=$(uname -m)
+if [ "$UNAME_M"  != "x86_64" ]; then
+    echo " Only x86_64 architecture is supported."
+    exit 1
+fi
+
+KNOWN_DISTRIBUTION="(Debian|Ubuntu|RedHat|CentOS|openSUSE|Amazon|Arista|SUSE)"
+DISTRIBUTION=$(lsb_release -d 2>/dev/null | grep -Eo $KNOWN_DISTRIBUTION  || grep -Eo $KNOWN_DISTRIBUTION /etc/issue 2>/dev/null || grep -Eo $KNOWN_DISTRIBUTION /etc/Eos-release 2>/dev/null || grep -m1 -Eo $KNOWN_DISTRIBUTION /etc/os-release 2>/dev/null || uname -s)
+
+if [ $DISTRIBUTION = "Darwin" ]; then
+    OS="MacOS"
+elif [ -f /etc/debian_version -o "$DISTRIBUTION" == "Debian" ]; then
+    OS="Debian"
+elif [ -f /etc/debian_version -o "$DISTRIBUTION" == "Ubuntu" ]; then
+    OS="Ubuntu"
+elif [ -f /etc/redhat-release -o "$DISTRIBUTION" == "RedHat" -o "$DISTRIBUTION" == "CentOS" -o "$DISTRIBUTION" == "Amazon" ]; then
+    OS="RedHat"
+# Some newer distros like Amazon may not have a redhat-release file
+elif [ -f /etc/system-release -o "$DISTRIBUTION" == "Amazon" ]; then
+    OS="RedHat"
+# Arista is based off of Fedora14/18 but do not have /etc/redhat-release
+elif [ -f /etc/Eos-release -o "$DISTRIBUTION" == "Arista" ]; then
+    OS="RedHat"
+# openSUSE and SUSE use /etc/SuSE-release
+elif [ -f /etc/SuSE-release -o "$DISTRIBUTION" == "SUSE" -o "$DISTRIBUTION" == "openSUSE" ]; then
+    OS="SUSE"
+fi
+
+# Install packages on supported OS
+if [ $OS != "RedHat" -a $OS != "Ubuntu" ]; then
+    echo " OS not supported by SmartScaler agent. Please use Ubuntu or RHEL."
+    exit 1
+fi
+
 function scripthelp {
     echo ''
     echo 'Usage: ./update.sh [options] '
@@ -53,6 +91,22 @@ echo "WQL_AGENT    = ${WQL_AGENT}"
 
 [[ ${WQL_VERSION} =~ v[0-9]+\.[0-9]+\.[0-9]+ && ${WQL_AGENT} =~ [0-9A-Fa-f]{24} ]] || (echo "Error: incorrect parameters"  && exit 1)
 
+# Root user detection
+if [ $(echo "$UID") = "0" ]; then
+    sudo_cmd=''
+else
+    sudo_cmd='sudo'
+fi
+
+pckg_mngr=''
+echo '' > ${log_file}
+
+if [ $OS = "RedHat" ]; then
+    pckg_mngr='yum'
+elif [ $OS = "Ubuntu" ]; then
+    pckg_mngr='apt-get'
+fi
+
 # 1. Initialize variables
 # ####################################################
 app_folder="/app"
@@ -64,10 +118,10 @@ git_user="hnltcs"
 wql_user=`whoami`
 
 # 2. Check prereqs & update
-# todo supported distrib (redhat), and archi (64bits)
+# Supported distrib (redhat), and archi (64bits)
 # ####################################################
 
-yum -q list installed git &>/dev/null || (echo "Error: Missing packages" && exit 2)
+$pckg_mngr -q list installed git &>/dev/null || (echo "Error: Missing packages" && exit 2)
 if [[ ! -f ${scaler_folder}/conf.json || \
    ! -f ${scaler_folder}/.aws_region || \
    ! -f ${scaler_folder}/.aws_instanceid || \
@@ -83,14 +137,14 @@ fi
 # ####################################################
 
 #clear
-sudo rm -rf ${installer_folder}
+$sudo_cmd rm -rf ${installer_folder}
 mkdir -p ${backup_folder}
 git clone https://github.com/worqloads/wql_installer.git $installer_folder                          &>> ${log_file}
 
 cd ${installer_folder}
 git checkout ${WQL_VERSION}                                                                         &>> ${log_file}
-sudo npm install                                                                                    &>> ${log_file}
-sudo chown -R $wql_user:$wql_user ${app_folder}                                                     &>> ${log_file}
+$sudo_cmd npm install                                                                                    &>> ${log_file}
+$sudo_cmd chown -R $wql_user:$wql_user ${app_folder}                                                     &>> ${log_file}
 
 # download update script
 curl -o ${installer_folder}/update.sh "https://raw.githubusercontent.com/worqloads/wql_deploy/master/scripts/update.sh" && \
