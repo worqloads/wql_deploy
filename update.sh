@@ -122,7 +122,7 @@ sed -i -E "s/\"version\":\s\"v[0-9]+\.[0-9]+\.[0-9]+\"/\"version\": \"${WQL_VERS
 cat ${scaler_folder}/conf.json                                                                        &>> ${log_file}
 
 # report new version to web app
-curl -d "{\"agent\": \"${WQL_AGENT}\", \"version\": \"${WQL_VERSION}\" }" -H "Content-Type: application/json" -X POST https://scaling.worqloads.com/updates/done &>> ${log_file}
+curl -d "{\"agent\": \"${WQL_AGENT}\", \"version\": \"${WQL_VERSION}\" }" -H "Content-Type: application/json" -X POST https://smartscaler.worqloads.com/updates/done &>> ${log_file}
 rm -rf ${installer_folder}                                                                         &>> ${log_file}
 
-# curl -d "{\"agent\": \"ddd\", \"version\": \"111\" }" -H "Content-Type: application/json" -X POST https://scaling.worqloads.com/updates
+# curl -d "{\"agent\": \"ddd\", \"version\": \"111\" }" -H "Content-Type: application/json" -X POST https://smartscaler.worqloads.com/updates
