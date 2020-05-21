@@ -154,7 +154,7 @@ if [[ $? -eq 0 && -f './conf.json' ]]; then
     cd ${scaler_folder}
     mv ${installer_folder}/scale*min.js ${installer_folder}/node_modules ${installer_folder}/.aws_* ${installer_folder}/.ecosystem.config.js ${installer_folder}/conf.json ${scaler_folder}/    &>> ${log_file}
     # download update script
-    curl -s || ${scaler_folder}/update.sh "https://raw.githubusercontent.com/worqloads/wql_deploy/master/scripts/update.sh" && \
+    curl -s -o ${scaler_folder}/update.sh "https://raw.githubusercontent.com/worqloads/wql_deploy/master/scripts/update.sh" && \
         chmod 700 ${scaler_folder}/update.sh &>> ${log_file}
     
     pm2 delete all &>> ${log_file} || echo ''
