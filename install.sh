@@ -101,7 +101,9 @@ yes | $sudo_cmd npm install pm2 -g                                              
 [[ -d ~/.config ]] && $sudo_cmd chown -R $wql_user:$wql_user ~/.config                                   &>> ${log_file}
 
 # pm2 as startup
+
 $sudo_cmd env PATH=$PATH:/usr/bin /usr/lib/node_modules/pm2/bin/pm2 startup systemd -u ${wql_user} --hp /home/${wql_user} &>> ${log_file}
+$sudo_cmd systemctl status pm2-${wql_user}.service &>> ${log_file}
 
 # add cron housekeeping script of pm2 logs
 pm2 install pm2-logrotate                              &>> ${log_file}
