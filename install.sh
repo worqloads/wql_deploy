@@ -68,7 +68,9 @@ if [[ $OS = "RedHat" ]]; then
 
     pckg_mngr='yum'
     nodesource='https://rpm.nodesource.com/setup_12.x'
-
+    #SElinux prevent restart of pm2 due to access of .pm2/pid files in /home folders
+    sudo setenforce 0
+    
 elif [[ $OS = "Ubuntu" ]]; then
     
     if [[ -f /etc/lsb-release ]]; then
@@ -99,11 +101,6 @@ yes | $sudo_cmd npm install pm2 -g                                              
 [[ -d ~/.ssh ]] || mkdir ~/.ssh && chmod 700  ~/.ssh                                                     &>> ${log_file}
 [[ -d ~/.npm ]] && $sudo_cmd chown -R $wql_user:$wql_user ~/.npm                                         &>> ${log_file}
 [[ -d ~/.config ]] && $sudo_cmd chown -R $wql_user:$wql_user ~/.config                                   &>> ${log_file}
-
-# pm2 as startup
-
-$sudo_cmd env PATH=$PATH:/usr/bin /usr/lib/node_modules/pm2/bin/pm2 startup systemd -u ${wql_user} --hp /home/${wql_user} &>> ${log_file}
-$sudo_cmd systemctl status pm2-${wql_user}.service &>> ${log_file}
 
 # add cron housekeeping script of pm2 logs
 pm2 install pm2-logrotate                              &>> ${log_file}
@@ -165,5 +162,10 @@ if [[ $? -eq 0 && -f './conf.json' ]]; then
     pm2 save &>> ${log_file}
 
 fi
+
+# pm2 as startup
+$(pm2 startup | tail -1) &>> ${log_file}
+# $sudo_cmd env PATH=$PATH:/usr/bin /usr/lib/node_modules/pm2/bin/pm2 startup systemd -u ${wql_user} --hp /home/${wql_user} &>> ${log_file}
+$sudo_cmd systemctl status pm2-${wql_user}.service &>> ${log_file}
 
 rm -rf ${installer_folder}/
