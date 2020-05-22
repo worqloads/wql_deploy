@@ -68,9 +68,14 @@ if [[ $OS = "RedHat" ]]; then
 
     pckg_mngr='yum'
     nodesource='https://rpm.nodesource.com/setup_12.x'
-    #SElinux prevent restart of pm2 due to access of .pm2/pid files in /home folders
+
+    # Only for RHEL:
+    # SElinux prevent restart of pm2 due to access of .pm2/pid files in /home folders
+    # dynamic change
     sudo setenforce 0
-    
+    # permanent required in case of reboot
+    sudo sed -i s/^SELINUX=.*$/SELINUX=permissive/ /etc/selinux/config
+
 elif [[ $OS = "Ubuntu" ]]; then
     
     if [[ -f /etc/lsb-release ]]; then
