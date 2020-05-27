@@ -16,6 +16,7 @@ secudir=${scaler_folder}/.keys
 log_file="/tmp/wql_installer_$(date "+%Y.%m.%d-%H.%M.%S").log"
 git_user="hnltcs"
 wql_user=`whoami`
+wql_group=`groups`
 # ####################################################
 
 # stop if there's an error
@@ -34,11 +35,15 @@ if [[ $(lsb_release -d 2>/dev/null | grep -Eo Ubuntu) == "Ubuntu" ]]; then
     OS="Ubuntu"
 elif [[ -f /etc/redhat-release && $(grep -Eo "Red Hat Enterprise Linux" /etc/redhat-release) == "Red Hat Enterprise Linux" ]]; then
     OS="RedHat"
+elif [[ -f /etc/os-release && $(grep -E "^NAME=" /etc/os-release) == "NAME=\"Amazon Linux\"" ]]; then
+    OS="AmazonLinux"
+elif [[ -f /etc/os-release && $(grep -E "^NAME=" /etc/os-release) == "NAME=\"SLES\"" ]]; then
+    OS="SLES"
 fi
 
 # Install packages on supported OS
-if [[ $OS != "RedHat" && $OS != "Ubuntu" ]]; then
-    echo " OS not supported by SmartScaler agent. Please use Ubuntu or RHEL."
+if [[ $OS != "RedHat" && $OS != "Ubuntu" && $OS != "AmazonLinux" && $OS != "SLES"  ]]; then
+    echo " OS not supported by SmartScaler agent. Please use one of following options: Ubuntu, SLES, RHEL or Amazon Linux."
     exit 1
 fi
 
@@ -89,23 +94,41 @@ elif [[ $OS = "Ubuntu" ]]; then
     pckg_mngr='apt-get'
     nodesource='https://deb.nodesource.com/setup_12.x'
 
-# elif [[ $OS = "SUSE" ]]; then
-#     pckg_mngr='zypper'
-    
+elif [[ $OS = "AmazonLinux" ]]; then
+    pckg_mngr='yum'
+    nodesource='https://rpm.nodesource.com/setup_12.x'
+elif [[ $OS = "SLES" ]]; then
+
+    if [[ $(grep -E "^VERSION=" /etc/os-release) != "VERSION=\"15-SP1\"" || $(getconf LONG_BIT) != 64 ]]; then
+        echo " Only SLES versions >= 15 SP1 and 64 bits are supporrted."
+        exit 1
+    fi
+    pckg_mngr='zypper'
+
 fi
 
-# install NodeJS, NPM, PM2, GIT
-yes | $sudo_cmd $pckg_mngr update                                                                               &>> ${log_file}
-yes | $sudo_cmd $pckg_mngr install curl git                                                                     &>> ${log_file}
-curl -sL $nodesource | $sudo_cmd -E bash -                                                                      &>> ${log_file}
-yes | $sudo_cmd $pckg_mngr install -y nodejs                                                                    &>> ${log_file}
+if [[ $OS = "SLES" ]]; then
+    if [[ $(zypper repos | grep -c devel_languages_nodejs) == 0 ]]; then
+        yes | sudo -i zypper addrepo https://download.opensuse.org/repositories/devel:/languages:/nodejs/SLE_15_SP1/devel:languages:nodejs.repo &>> ${log_file}
+    fi
+    yes | sudo -i zypper refresh  &>> ${log_file}
+    yes | sudo -i zypper install nodejs12 &>> ${log_file}
+    yes | sudo -i zypper install git                                                                     &>> ${log_file}
+    node -v  &>> ${log_file}
+else
+    # install NodeJS, NPM, PM2, GIT
+    yes | $sudo_cmd $pckg_mngr update                                                                               &>> ${log_file}
+    yes | $sudo_cmd $pckg_mngr install curl git                                                                     &>> ${log_file}
+    curl -sL $nodesource | $sudo_cmd -E bash -                                                                      &>> ${log_file}
+    yes | $sudo_cmd $pckg_mngr install -y nodejs                                                                    &>> ${log_file}
+fi
 
 yes | $sudo_cmd npm install npm@latest -g                                                                &>> ${log_file}
 yes | $sudo_cmd npm install pm2 -g                                                                       &>> ${log_file}
 
 [[ -d ~/.ssh ]] || mkdir ~/.ssh && chmod 700  ~/.ssh                                                     &>> ${log_file}
-[[ -d ~/.npm ]] && $sudo_cmd chown -R $wql_user:$wql_user ~/.npm                                         &>> ${log_file}
-[[ -d ~/.config ]] && $sudo_cmd chown -R $wql_user:$wql_user ~/.config                                   &>> ${log_file}
+[[ -d ~/.npm ]] && $sudo_cmd chown -R $wql_user:$wql_group ~/.npm                                         &>> ${log_file}
+[[ -d ~/.config ]] && $sudo_cmd chown -R $wql_user:$wql_group ~/.config                                   &>> ${log_file}
 
 # add cron housekeeping script of pm2 logs
 pm2 install pm2-logrotate                              &>> ${log_file}
@@ -114,7 +137,7 @@ pm2 set pm2-logrotate:retain 24                        &>> ${log_file}
 pm2 set pm2-logrotate:rotateInterval '0 * * * *'       &>> ${log_file}
 
 [[ -d ${app_folder} ]] || $sudo_cmd mkdir -p ${app_folder}                                               &>> ${log_file}
-$sudo_cmd chown -R $wql_user:$wql_user ${app_folder}                                                     &>> ${log_file}
+$sudo_cmd chown -R $wql_user:$wql_group ${app_folder}                                                     &>> ${log_file}
 
 # update profile
 [[ `cat ~/.bashrc | grep -c '^export SECUDIR='` -ne 0  ]] || echo export SECUDIR=${secudir} >> ~/.bashrc ; export SECUDIR=${secudir}
@@ -131,7 +154,7 @@ cd ${installer_folder}
 [[ ! -z "$WQL_VERSION" ]] && git checkout ${WQL_VERSION}                                            &>> ${log_file}
 $sudo_cmd npm install                                                                                    &>> ${log_file}
 [[ -d ${secudir} ]] || mkdir -p ${secudir}                                                          &>> ${log_file}
-$sudo_cmd chown -R $wql_user:$wql_user ${app_folder}                                                     &>> ${log_file}
+$sudo_cmd chown -R $wql_user:$wql_group ${app_folder}                                                     &>> ${log_file}
 
 # get aws instance region
 TOKEN=`curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600"` &>> ${log_file}
