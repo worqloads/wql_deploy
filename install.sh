@@ -16,7 +16,7 @@ secudir=${scaler_folder}/.keys
 log_file="/tmp/wql_installer_$(date "+%Y.%m.%d-%H.%M.%S").log"
 git_user="hnltcs"
 wql_user=`whoami`
-wql_group=`groups`
+wql_group=`id -gn`
 # ####################################################
 
 # stop if there's an error
